@@ -18,6 +18,7 @@
 // @input float minTextSize = 1.0 {"widget":"slider", "min":0, "max":40, "step":1}
 // @input float maxTextSize = 10.0 {"widget":"slider", "min":10, "max":40, "step":1}
 // @input float textSpeed = 5.0 {"widget":"slider", "min":0, "max":20, "step":0.25}
+// @input int maxCharacterCount = 10 {"widget":"slider", "min":10, "max":20, "step":1}
 // @ui {"widget": "group_end"}
 
 // @input bool advanced = true
@@ -32,35 +33,36 @@
 
 var segmentationTextureReady = false;
 var textObjects = [];
-var topLeft = script.orthographicCameraMasked.screenSpaceToWorldSpace(new vec2(0,0), 200);
-var topRight = script.orthographicCameraMasked.screenSpaceToWorldSpace(new vec2(1,0), 200);
+var depth = 40;
+var topLeft = script.orthographicCameraMasked.screenSpaceToWorldSpace(new vec2(0,0), depth);
+var topRight = script.orthographicCameraMasked.screenSpaceToWorldSpace(new vec2(1,0), depth);
+var bottom = script.orthographicCameraMasked.screenSpaceToWorldSpace(new vec2(0,1), depth);
 
 function TextObject(textComponent) 
 {
 	this.textComponent = textComponent;
 	this.currentInsertTime = 0.0;
 	this.currentSpeed = 0.0;
-	this.characterInsertTime = 0.16;
 	this.currentTotalTime = 0.0;
+	this.maxCharCount = randomNumberInt(10, script.maxCharacterCount);
 	this.maxTime = 200;
+	this.transform = textComponent.getTransform();
 }
 
 TextObject.prototype.reset = function() {
 	this.textComponent.text = generateRandomCharacter();
 	this.textComponent.size = randomNumberInt(script.minTextSize, script.maxTextSize);
 	
-	var textTransform = this.textComponent.getTransform();
+	var textTransform = this.transform;
 	var worldPosition = textTransform.getWorldPosition();
 	worldPosition.x = randomNumber(-5, 5);
-	worldPosition.y = topLeft.y + randomNumber(0, 10);
-
+	worldPosition.y = topLeft.y + randomNumber(10, 30);
+	
 	textTransform.setWorldPosition(worldPosition);
 
 	this.currentSpeed = script.textSpeed;
-	this.currentInsertTime = -randomNumber(0, 1);
 	this.characterInsertTime = randomNumber(0.016, 1);
-	this.maxTime = randomNumber(2, 10);
-	this.currentTotalTime = 0.0;
+	this.maxCharCount = randomNumberInt(10, script.maxCharacterCount);
 }
 
 function turnOn( eventData )
@@ -150,18 +152,10 @@ function configureTextObjects()
 		var textInstance = script.textPrefab.instantiate(null);
 		var textComponent = textInstance.getFirstComponent("Component.Text");
 		var textObject = new TextObject(textComponent);
-		var worldPosition = new vec3(0,0,0);
 
 		textObject.reset();
 
-		worldPosition.x = randomNumber(-5, 5);
-		worldPosition.y = topLeft.y + 1;
-
-		var textTransform = textComponent.getTransform();
-		textTransform.setWorldPosition(worldPosition);
-
 		textComponent.textFill.color =  new vec4(script.textColor.r, script.textColor.g, script.textColor.b, 1);
-
 		textObjects.push(textObject);
 	}
 }
@@ -215,19 +209,35 @@ function updateRainEffect()
 	for (var i = 0; i < textObjects.length; ++i) {
 		var textObject = textObjects[i];
 		var textComponent = textObject.textComponent;
-		var currentTime = textObject.currentInsertTime + textObject.currentSpeed * getDeltaTime();
+		var textTransform = textObject.transform;
+		var position = textTransform.getWorldPosition();
+		
 		textObject.currentTotalTime += getDeltaTime();
-
-		if (currentTime >= textObject.characterInsertTime) {
-			textComponent.text += "\\u0A" + generateRandomCharacter();
+		
+		position.y -= textObject.currentSpeed * getDeltaTime();
+		textTransform.setWorldPosition(position);
+		
+		if (textComponent.text.length <= textObject.maxCharCount) {
+			textComponent.text += generateRandomCharacter(); //"\\u0A" +
 			textObject.currentTime = 0;
 		}
-		else {
-			textObject.currentInsertTime = currentTime;
-		}
 		
-		if (textObject.currentTotalTime >= textObject.maxTime) {
+//		if (Math.floor(textObject.currentTotalTime) % 2 == 0) {
+//			var randomIndex = randomNumberInt(0, textComponent.text.length - 2);
+//			var lastCharacterIndex = textComponent.text.length -1;
+//			
+//			textComponent.text = setCharAt(textComponent.text, randomIndex, generateRandomCharacter());
+//			textComponent.text = setCharAt(textComponent.text, lastCharacterIndex, generateRandomCharacter());
+//		}
+		//textComponent.text[lastCharacterIndex] = generateRandomCharacter();
+		
+		if (position.y <= bottom.y) {
 			textObject.reset();
 		}
 	}
+}
+
+function setCharAt(str,index,chr) {
+    if(index > str.length-1) return str;
+    return str.substr(0,index) + chr + str.substr(index+1);
 }
