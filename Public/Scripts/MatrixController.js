@@ -146,15 +146,23 @@ function configureTextObjects()
 		return;
 	}
 
-	//topLeft.y += 1; //move offscreen
-
 	for (var i = 0; i < script.numTextObjects; ++i) {
 		var textInstance = script.textPrefab.instantiate(null);
 		var textComponent = textInstance.getFirstComponent("Component.Text");
 		var textObject = new TextObject(textComponent);
 
 		textObject.reset();
-
+		
+		//Add more variation when starting, otherwise all the text
+		//will fall at the same time: looks bad
+		if (i % 2 == 0) {
+			var transform = textObject.transform;
+			var worldPosition = transform.getWorldPosition();
+			
+			worldPosition.y *= 2;
+			transform.setWorldPosition(worldPosition);
+		}
+		
 		textComponent.textFill.color =  new vec4(script.textColor.r, script.textColor.g, script.textColor.b, 1);
 		textObjects.push(textObject);
 	}
@@ -218,18 +226,9 @@ function updateRainEffect()
 		textTransform.setWorldPosition(position);
 		
 		if (textComponent.text.length <= textObject.maxCharCount) {
-			textComponent.text += generateRandomCharacter(); //"\\u0A" +
+			textComponent.text += generateRandomCharacter();
 			textObject.currentTime = 0;
 		}
-		
-//		if (Math.floor(textObject.currentTotalTime) % 2 == 0) {
-//			var randomIndex = randomNumberInt(0, textComponent.text.length - 2);
-//			var lastCharacterIndex = textComponent.text.length -1;
-//			
-//			textComponent.text = setCharAt(textComponent.text, randomIndex, generateRandomCharacter());
-//			textComponent.text = setCharAt(textComponent.text, lastCharacterIndex, generateRandomCharacter());
-//		}
-		//textComponent.text[lastCharacterIndex] = generateRandomCharacter();
 		
 		if (position.y <= bottom.y) {
 			textObject.reset();
